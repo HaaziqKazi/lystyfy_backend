@@ -1,6 +1,7 @@
 import os 
 import numpy as np 
 import pandas as pd
+import pytorch as pt
 import matplotlib as plt
 import librosa
 import scipy as sp # install
@@ -10,6 +11,11 @@ debussy_file = 'debussy.wav'
 debussy, sr = librosa.load(debussy_file)
 
 '''
+make something like a language model for music. 
+output the probability of two audio clips being in sequence! 
+we train on cut up song clips labeled 1, as in they are definitely in sequence, and mismatched song clips labeled 0
+
+
 Plan - need to extract key, pitch, timbre, chords, idk what else 
 
 beats and and important rhythms - use amplitude envelope to extract (helps with tempo analysis)
