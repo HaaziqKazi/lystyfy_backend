@@ -26,4 +26,7 @@ how to measure fitness? maybe don't even need a learning network just music theo
 
 then a vector database thing for text on the song (each song has words associated - then match them)
 
+
+
+hi!!! hello
 '''
