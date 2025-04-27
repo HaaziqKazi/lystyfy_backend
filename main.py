@@ -25,6 +25,13 @@ pitch / key - audacity estimates it by the first note, otherwise it's hard if it
 mel spectrogram / Mel frequency cepstral coeff as an input feature in Music Classification, for identifying instruments
 spectral centroid / bandwidth / band energy ratio
 
+autoencoders - generates music lol
+variational AE - generates music... but fancier 
+LSTM too 
+how is Background Noise Removal done?
+
+lwk don't get too hung up on ts just start making the program lol 
+
 
 lwk can first use shit where notes and stuff is already known, and then train 
 how to measure fitness? maybe don't even need a learning network just music theory thing
