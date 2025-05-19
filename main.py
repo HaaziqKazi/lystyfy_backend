@@ -39,7 +39,8 @@ how to measure fitness? maybe don't even need a learning network just music theo
 
 then a vector database thing for text on the song (each song has words associated - then match them)
 
-
+maybe like a personalized radio jockey
+uk this has applications in personalized advertisement targeting. LLM + ad + smooth transition. the best ads are the ones you don't even notice are there 
 
 hi!!! hello
 '''
