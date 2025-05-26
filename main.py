@@ -2,6 +2,7 @@ import os
 import numpy as np 
 import pandas as pd
 import pytorch as pt
+
 import matplotlib as plt
 import librosa
 import scipy as sp # install
@@ -9,6 +10,11 @@ import scipy as sp # install
 # copy relative path
 debussy_file = 'debussy.wav'
 debussy, sr = librosa.load(debussy_file)
+
+class MusicClassifier(pt.nn.module):
+    def __init__(self):
+        super().__init__()
+        
 
 '''
 make something like a language model for music. 
