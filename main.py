@@ -1,20 +1,32 @@
 import os 
 import numpy as np 
 import pandas as pd
-import pytorch as pt
+#import pytorch as pt
 
 import matplotlib as plt
 import librosa
 import scipy as sp # install
 
-# copy relative path
-debussy_file = 'debussy.wav'
-debussy, sr = librosa.load(debussy_file)
 
-class MusicClassifier(pt.nn.module):
+
+'''class MusicClassifier(pt.nn.module):
     def __init__(self):
-        super().__init__()
-        
+        super().__init__()'''
+
+investigations_file = 'Audio/investigations.mp3'
+sneaky_adventure_file = 'Audio/sneaky-adventure.mp3'
+
+investigations, sr1 = librosa.load(investigations_file) # load the audio file, returns audio time series and sampling rate
+sneaky_adventure, sr2 = librosa.load(sneaky_adventure_file)
+investigations_duration = librosa.get_duration(y=investigations, sr=22050) # get the duration of the audio file
+sneaky_adventure_duration = librosa.get_duration(y=sneaky_adventure, sr=22050)
+print(f'Investigations duration: {investigations_duration} seconds')
+print(f'Sneaky Adventure duration: {sneaky_adventure_duration} seconds')
+
+investigations_tempo, investigations_beats = librosa.beat.beat_track(y=investigations, sr=sr1)
+print(investigations_tempo, investigations_beats)
+
+librosa.feature.chroma_stft
 
 '''
 make something like a language model for music. 
