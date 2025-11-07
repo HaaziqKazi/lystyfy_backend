@@ -29,7 +29,6 @@ then a vector database thing for text on the song (each song has words associate
 maybe like a personalized radio jockey
 uk this has applications in personalized advertisement targeting. LLM + ad + smooth transition. the best ads are the ones you don't even notice are there 
 
-hi!!! hello
 
 
 
@@ -55,5 +54,10 @@ ways to improve:
 do it on beats -> because you want to transition on each beat, not on a random second (because it may cut)
 put the features into a json file (so to not recompute every single time)
 a lot of the songs end or start with silence lmao
+genetic algorithm
+
+
+
+EEG - use brain waves to recommend?
 
 also go visualise lmao
