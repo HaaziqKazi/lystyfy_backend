@@ -15,7 +15,7 @@ def score_transition(prev_song_chunks, next_song_chunks, scaler, prev_n=3, next_
         next_n: How many starting chunks of B to consider
     
     Returns:
-        float: Best similarity score (0 to 1)
+        tuple: (best_score, best_prev_chunk_idx, best_next_chunk_idx)
     """
     # Handle edge cases
     actual_prev_n = min(prev_n, len(prev_song_chunks))
@@ -25,7 +25,7 @@ def score_transition(prev_song_chunks, next_song_chunks, scaler, prev_n=3, next_
     prev_chunks = prev_song_chunks[-actual_prev_n:]  # Last N chunks
     next_chunks = next_song_chunks[:actual_next_n]    # First N chunks
     
-    # Convert to vectors and normalize (do this once, not in loop!)
+    # Convert to vectors and normalize
     prev_vectors = []
     for chunk in prev_chunks:
         vec = features_to_vector(chunk)
@@ -38,12 +38,20 @@ def score_transition(prev_song_chunks, next_song_chunks, scaler, prev_n=3, next_
         vec_norm = scaler.transform([vec])[0]
         next_vectors.append(vec_norm)
     
-    # Find best similarity
+    # Find best similarity and track which chunks
     max_similarity = -1
-    for vec1 in prev_vectors:
-        for vec2 in next_vectors:
+    best_prev_idx = None
+    best_next_idx = None
+    
+    for i, vec1 in enumerate(prev_vectors):
+        for j, vec2 in enumerate(next_vectors):
             sim = cosine_similarity([vec1], [vec2])[0][0]
-            max_similarity = max(max_similarity, sim)
+            if sim > max_similarity:
+                max_similarity = sim
+                best_prev_idx = len(prev_song_chunks) - actual_prev_n + i  # Actual index in full song
+                best_next_idx = j  # Index from start
+    
+    return max_similarity, best_prev_idx, best_next_idx
 
 
 def compute_transition_matrix(songs, scaler):
@@ -57,27 +65,49 @@ def compute_transition_matrix(songs, scaler):
     song_names = list(songs.keys())
     n = len(song_names)
     
-    # Initialize matrix with zeros
     transition_matrix = np.zeros((n, n))
-    
-    print(f"Computing {n} x {n} transition matrix...")
+    # NEW: Store cut point information
+    cut_points = {}  # Will store (prev_idx, next_idx) for each transition
     
     for i, prev_song in enumerate(song_names):
         for j, next_song in enumerate(song_names):
             if i == j:
-                # Don't transition to same song
                 transition_matrix[i][j] = -1
             else:
-                score = score_transition(
+                score, prev_idx, next_idx = score_transition(  # Now gets 3 values!
                     songs[prev_song]['chunks'],
                     songs[next_song]['chunks'],
                     scaler=scaler
                 )
                 transition_matrix[i][j] = score
-                print(f"{prev_song} -> {next_song}: {score:.3f}")
+                cut_points[(i, j)] = (prev_idx, next_idx)  # Store cut info
     
-    print("Matrix complete!")
-    return transition_matrix, song_names
+    return transition_matrix, song_names, cut_points
 
-    # and then find the best order - this is a directed cyclic graph,
-    # and find the best path with biggest distance (travelling salesperson problem)
+def greedy_playlist(transition_matrix, song_names, start_idx=0, length=None):
+    if length is None:
+        length = len(song_names)
+    
+    playlist = [start_idx]
+    visited = {start_idx}
+    current = start_idx
+    
+    for _ in range(length - 1):
+        # Get scores from current song
+        scores = transition_matrix[current].copy()
+        
+        # Mask visited songs
+        for v in visited:
+            scores[v] = -np.inf
+        
+        # Pick best unvisited
+        next_song = np.argmax(scores)
+        
+        if scores[next_song] == -np.inf:
+            break  # No more songs
+        
+        playlist.append(next_song)
+        visited.add(next_song)
+        current = next_song
+    
+    return playlist
