@@ -1,64 +1,156 @@
 import os 
+import pickle
+
 import numpy as np 
-import pandas as pd
-#import pytorch as pt
-
-import matplotlib as plt
 import librosa
-import scipy as sp # install
+from sklearn.metrics.pairwise import cosine_similarity
+from sklearn.preprocessing import StandardScaler
+import matplotlib.pyplot as plt
+import seaborn as sns
+
+from vectorise import features_to_vector    
+from transitions import score_transition, compute_transition_matrix
 
 
+sr = 22050
+audio_dir = 'data/Audio'
+# audio_files = [f for f in os.listdir(audio_dir) if f.endswith('.mp3')]
+audio_files = ['adreneline.mp3', 'night_of_fire.mp3']
 
-'''class MusicClassifier(pt.nn.module):
-    def __init__(self):
-        super().__init__()'''
+print(f"Found {len(audio_files)} songs:")
+for file in audio_files:
+    print(f"  - {file}")
 
-investigations_file = 'Audio/investigations.mp3'
-sneaky_adventure_file = 'Audio/sneaky-adventure.mp3'
+# Load each file
+songs = {}
+for filename in audio_files:
+    filepath = os.path.join(audio_dir, filename)
+    print(f"\nLoading {filename}...")
+    
+    y, sr = librosa.load(filepath, sr=22050)
+    duration = librosa.get_duration(y=y, sr=sr)
+    
+    songs[filename] = {
+        'audio': y, 
+        'sr': sr, 
+        'duration': duration,
+        'chunks': []  # Will store chunk features here
+    }
+    
+    print(f"Loaded: {duration:.2f} seconds, {len(y)} samples")
 
-investigations, sr1 = librosa.load(investigations_file) # load the audio file, returns audio time series and sampling rate
-sneaky_adventure, sr2 = librosa.load(sneaky_adventure_file)
-investigations_duration = librosa.get_duration(y=investigations, sr=22050) # get the duration of the audio file
-sneaky_adventure_duration = librosa.get_duration(y=sneaky_adventure, sr=22050)
-print(f'Investigations duration: {investigations_duration} seconds')
-print(f'Sneaky Adventure duration: {sneaky_adventure_duration} seconds')
+print(f"\nAll {len(songs)} songs loaded!")
 
-investigations_tempo, investigations_beats = librosa.beat.beat_track(y=investigations, sr=sr1)
-print(investigations_tempo, investigations_beats)
+# Process each song
+for song_name, song_data in songs.items():
+    print(f"\nProcessing {song_name}...")
+    
+    y = song_data['audio']
+    sr = song_data['sr']
+    
+    # Chunking parameters
+    chunk_duration = 3  # seconds
+    chunk_samples = chunk_duration * sr
+    num_chunks = len(y) // chunk_samples
+    
+    print(f"  Creating {num_chunks} chunks...")
+    
+    # Extract features for each chunk
+    for i in range(num_chunks):
+        # Get chunk
+        start = i * chunk_samples
+        end = start + chunk_samples
+        chunk = y[start:end]
+        
+        # Dictionary to store this chunk's features
+        chunk_features = {
+            'chunk_index': i,
+            'start_time': start / sr,
+            'end_time': end / sr
+        }
+        
+        # 1. RMS (loudness)
+        rms = librosa.feature.rms(y=chunk)
+        chunk_features['rms_mean'] = np.mean(rms)
+        chunk_features['rms_std'] = np.std(rms)
+        
+        # 2. Tempo
+        tempo, beat_frames = librosa.beat.beat_track(y=chunk, sr=sr)
+        chunk_features['tempo'] = np.asarray(tempo).item()  # Extract scalar properly
+        chunk_features['num_beats'] = len(beat_frames)
+        
+        # 3. MFCCs (timbre)
+        mfcc = librosa.feature.mfcc(y=chunk, sr=sr, n_mfcc=13)
+        chunk_features['mfcc_mean'] = np.mean(mfcc, axis=1)  # 13 values
+        chunk_features['mfcc_std'] = np.std(mfcc, axis=1)    # 13 values
+        
+        # 4. MFCC Delta (change in timbre)
+        mfcc_delta = librosa.feature.delta(mfcc)
+        chunk_features['mfcc_delta_mean'] = np.mean(mfcc_delta, axis=1)  # 13 values
+        
+        # 5. Chroma (pitch/harmony)
+        chroma = librosa.feature.chroma_cqt(y=chunk, sr=sr)
+        chunk_features['chroma_mean'] = np.mean(chroma, axis=1)  # 12 values
+        
+        # 6. Spectral Centroid (brightness)
+        spectral_centroid = librosa.feature.spectral_centroid(y=chunk, sr=sr)
+        chunk_features['spectral_centroid_mean'] = np.mean(spectral_centroid)
+        chunk_features['spectral_centroid_std'] = np.std(spectral_centroid)
+        
+        # 7. Spectral Bandwidth (frequency spread)
+        spectral_bandwidth = librosa.feature.spectral_bandwidth(y=chunk, sr=sr)
+        chunk_features['spectral_bandwidth_mean'] = np.mean(spectral_bandwidth)
+        chunk_features['spectral_bandwidth_std'] = np.std(spectral_bandwidth)
+        
+        # 8. Band Energy Ratio (bass vs treble)
+        S = np.abs(librosa.stft(chunk))
+        freqs = librosa.fft_frequencies(sr=sr)
+        split_freq = 2000
+        split_bin = np.argmin(np.abs(freqs - split_freq))
+        low_energy = np.sum(S[:split_bin, :])
+        high_energy = np.sum(S[split_bin:, :])
+        chunk_features['band_energy_ratio'] = low_energy / (high_energy + 1e-10)
+        
+        # Store this chunk's features
+        song_data['chunks'].append(chunk_features)
+    
+    print(f"Extracted features for {len(song_data['chunks'])} chunks")
 
-librosa.feature.chroma_stft
 
-'''
-make something like a language model for music. 
-output the probability of two audio clips being in sequence! 
-we train on cut up song clips labeled 1, as in they are definitely in sequence, and mismatched song clips labeled 0
+# Collect all chunk vectors first
+all_vectors = []
+for song_name, song_data in songs.items():
+    for chunk in song_data['chunks']:
+        all_vectors.append(features_to_vector(chunk))
 
+all_vectors = np.array(all_vectors)
 
-Plan - need to extract key, pitch, timbre, chords, idk what else 
+# Fit scaler on ALL chunks
+scaler = StandardScaler()
+scaler.fit(all_vectors)
 
-beats and and important rhythms - use amplitude envelope to extract (helps with tempo analysis)
-loudness/softness - need to match 'intensity' in transitions between songs (use loudness?)
-single loudness measure per segment (RMS energy) or a continuous amplitude trace over time (amp. envelope)
-pitch / key - audacity estimates it by the first note, otherwise it's hard if its not known idk throw FFT lmao
-mel spectrogram / Mel frequency cepstral coeff as an input feature in Music Classification, for identifying instruments
-spectral centroid / bandwidth / band energy ratio
+matrix, song_names = compute_transition_matrix(songs, scaler=scaler)
 
-autoencoders - generates music lol
-variational AE - generates music... but fancier 
-LSTM too 
-how is Background Noise Removal done?
+# Save it
+np.save('data/transition_matrix.npy', matrix)
+with open('data/song_names.pkl', 'wb') as f:
+    pickle.dump(song_names, f)
 
-lwk don't get too hung up on ts just start making the program lol 
-
-
-lwk can first use shit where notes and stuff is already known, and then train 
-how to measure fitness? maybe don't even need a learning network just music theory thing
+print(f"\n{matrix}")
+print(f"\nSong order: {song_names}")
 
 
-then a vector database thing for text on the song (each song has words associated - then match them)
-
-maybe like a personalized radio jockey
-uk this has applications in personalized advertisement targeting. LLM + ad + smooth transition. the best ads are the ones you don't even notice are there 
-
-hi!!! hello
-'''
+plt.figure(figsize=(10, 8))
+sns.heatmap(matrix, 
+            xticklabels=song_names, 
+            yticklabels=song_names,
+            cmap='viridis', 
+            annot=True, 
+            fmt='.2f',
+            cbar_kws={'label': 'Transition Score'})
+plt.title('Song Transition Matrix')
+plt.xlabel('To Song ')
+plt.ylabel('From Song ')
+plt.tight_layout()
+plt.savefig('transition_matrix.png')
+plt.show()
