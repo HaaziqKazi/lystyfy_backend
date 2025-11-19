@@ -55,6 +55,8 @@ do it on beats -> because you want to transition on each beat, not on a random s
 put the features into a json file (so to not recompute every single time)
 a lot of the songs end or start with silence lmao
 genetic algorithm
+dimensionality reduction?
+on the fly recommendation? 
 
 
 
