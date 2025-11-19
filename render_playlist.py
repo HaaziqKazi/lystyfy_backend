@@ -297,8 +297,8 @@ def main():
             print("\n" + "=" * 60)
             print("RENDERING COMPLETE!")
             print("=" * 60)
-            print(f"\n🎵 Your mixed playlist is ready!")
-            print(f"📁 Location: {output_path}")
+            print(f"\nYour mixed playlist is ready!")
+            print(f"Location: {output_path}")
             print(f"\nYou can now play it in your favorite music player!")
             
     except Exception as e:
